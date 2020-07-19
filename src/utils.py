@@ -5,8 +5,6 @@ from matplotlib import cm
 from matplotlib.lines import Line2D
 import matplotlib.animation as animation
 
-import pickle
-
 from sklearn.metrics import (roc_curve, auc, precision_recall_curve,
                              average_precision_score, classification_report,
                              confusion_matrix)
@@ -32,18 +30,34 @@ def optimal_threshold_roc(tpr, fpr, threshs):
     return threshs[ix]
 
 
-def plot_pr(true_label, prediction):
-    precision, recall, threshs = precision_recall_curve(true_label, prediction)
-    average_precision = average_precision_score(true_label, prediction)
+def plot_pr_curve(y_true,
+                  y_pred_prob,
+                  save_filename=None,
+                  show=True,
+                  verbose=0):
+    """
+    Plot Precision-recall curve.
+    :param y_true: true label
+    :param y_pred_prob: probability predictions
+    :param save_filename: path and filename to save figure
+    :param show: if we want it to execute plt.show
+    :param verbose: print metrics
+    :return:
+    """
+    precision_, recall_, threshs = precision_recall_curve(y_true,
+                                                          y_pred_prob)
+    pr_auc_ = auc(recall_, precision_)
+    average_precision = average_precision_score(y_true, y_pred_prob)
 
     # compute optimal threshold
-    optimal_threshold_pr(precision, recall, threshs)
+    if verbose > 0:
+        optimal_threshold_pr(precision_, recall_, threshs)
 
     # plot
-    no_skill_pr = sum(true_label)/len(true_label)
+    no_skill_pr = sum(y_true) / len(y_pred_prob)
 
-    plt.step(recall, precision, color='k', alpha=0.7, where='post')
-    plt.fill_between(recall, precision, step='post', alpha=0.3, color='k')
+    plt.step(recall_, precision_, color='k', alpha=0.7, where='post')
+    plt.fill_between(recall_, precision_, step='post', alpha=0.3, color='k')
     plt.plot([0, 1], [no_skill_pr, no_skill_pr], color='k', lw=2,
              linestyle='--', alpha=0.3)
 
@@ -53,19 +67,40 @@ def plot_pr(true_label, prediction):
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
 
-    plt.title('Precision-Recall curve: Average precision = {0:0.2f}'
+    plt.title('Precision-Recall curve: Average precision = {0:0.3f}'
               .format(average_precision))
 
+    if save_filename:
+        plt.savefig(save_filename)
+        plt.close()
+    elif show:
+        plt.show()
 
-def plot_roc(true_label, prediction):
-    fpr, tpr, threshs = roc_curve(true_label, prediction)
-    auc_res = auc(fpr, tpr)
+    return pr_auc_, recall_, precision_
+
+
+def plot_roc_curve(y_true,
+                   y_pred_prob,
+                   save_filename=None,
+                   show=True,
+                   verbose=0):
+    """
+    Plot the ROC curve.
+    :param y_true: true label
+    :param y_pred_prob: probability predictions
+    :param save_filename: path and filename to save figure
+    :param show: if we want it to execute plt.show
+    :param verbose: print metrics
+    :return:
+    """
+    fpr, tpr, threshs = roc_curve(y_true, y_pred_prob)
+    roc_auc_ = auc(fpr, tpr)
 
     # compute optimal threshold
-    optimal_threshold_roc(tpr, fpr, threshs)
+    if verbose > 0:
+        optimal_threshold_roc(tpr, fpr, threshs)
 
     # plot
-    plt.figure()
     plt.plot(fpr, tpr, color='r', lw=2, label='ROC curve')
     plt.plot([0, 1], [0, 1], color='k', lw=2, linestyle='--')
 
@@ -76,9 +111,16 @@ def plot_roc(true_label, prediction):
     plt.ylim([0.0, 1.05])
 
     plt.title('Receiver operating characteristic: Area under the curve '
-              '= {0:0.2f}'.format(auc_res))
+              '= {0:0.3f}'.format(roc_auc_))
     plt.legend(loc='lower right')
-    plt.show()
+
+    if save_filename:
+        plt.savefig(save_filename)
+        plt.close()
+    elif show:
+        plt.show()
+
+    return roc_auc_, fpr, tpr
 
 
 def convert_mp4_to_gif(mp4_path, gif_path):
